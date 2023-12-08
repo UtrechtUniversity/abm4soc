@@ -3,10 +3,6 @@
 
 # Granovetter's threshold model of collective behaviour in a network
 
-## AUTHOR
-
-This code is based on a Netlogo model originally by Giangiacomo Bravo, to be found at https://modelingcommons.org/browse/one_model/4784#model_tabs_browse_info, and considerably revised and extended by Rense Corten.
-
 ## WHAT IS IT?
 
 This model reproduces [Mark Granovetter's (1978)](http://www.jstor.org/stable/2778111) threshold model of collective behavior, extended with network structures as in the model by [Watts (2002)](https://www.pnas.org/doi/abs/10.1073/pnas.082090499).
@@ -17,6 +13,10 @@ Agents face a binary decision: to participate or not in a riot, following Granov
 
 ## HOW TO USE IT
 
+### Installation
+Intall [Netlogo](https://ccl.northwestern.edu/netlogo/) (version 6). Download the .nlogo file from this repository and open it with Netlogo. 
+
+### Controls
 The _setup_ bottom sets up the agents and the network on the basis of the parameters below. Click it just once at the beginning of the simulation.
 
 1) **General parameters**
@@ -45,3 +45,7 @@ The _go_ button makes the agents choose their behaviour in the current round. It
 ## THINGS TO NOTICE
 
 How the riots spread under different threshold distributions and network shapes. Which are the conditions helping or hindering the spreading of the riots?
+
+## CREDITS
+
+This code is based on a Netlogo model originally by Giangiacomo Bravo, to be found at https://modelingcommons.org/browse/one_model/4784#model_tabs_browse_info, and considerably revised and extended by Rense Corten.
