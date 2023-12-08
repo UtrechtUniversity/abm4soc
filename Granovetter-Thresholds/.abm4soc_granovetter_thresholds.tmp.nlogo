@@ -1,4 +1,3 @@
-turtles-own [threshold riot? nlinks]
 
 globals [
  time
@@ -549,8 +548,8 @@ The _setup_ bottom sets up the agents and the network on the basis of the parame
 * The _number-of-agents_ slider allows to select the number of agents in the model.
 * The _network_  chooser allows to select the network type. Current possibilities are "random", "fully connected" and "small world". Note that the fully connected model may cause the model to run slowly if too many agents are selected.
 * The _threshold-distribution_ chooser allows to extract the agents' thresholds following different distributions. Current possibilities are the "constant", "uniform" and the "normal" distributions. With "constant", all agents have the same threshold, which corresponds to Watts' implementation. 
-* _add-seed_ determines whether to start with _n-seeds_ random agent rioting from the start.
-* _n-seeds_ sets the nubmer of seeds (if any).
+* _dd-seed_ determines whether to start with _n-seeds_ random agent rioting from the start.
+* _n-seeds_ sets the nubmer of seeds
 
 
 2) **Network-related parameters**
