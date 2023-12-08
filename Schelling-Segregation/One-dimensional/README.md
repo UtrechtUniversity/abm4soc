@@ -3,7 +3,7 @@
 
 ## WHAT IS IT?
 
-This model is two-dimensional implementation of Schelling's model of residential segregation. It is based on the project "Segregation" from netlogo's standard models library, but some respects closer to Schelling's original formulation of the model, and with some added features. As in the original version the basic assumption is that each inhabitant wants to live next to at least a given number of inhabitants of the same colour. However, in this version the inhabitants move sequentially rather then simultaniously. Moreover, inhabitants only start moving if there is a satisfactory place (patch) available for them somewhere, and settle only at places that meet their requirements. Added features are separate sliders for the preferences of both colors, and the possibility to change parameters and restart the process from an equilibrium situation.
+This model is one-dimensional implementation of Schelling's model of residential segregation. It is based on the project "Segregation" from netlogo's standard models library, but some respects closer to Schelling's original formulation of the model, and with some added features. As in the original version the basic assumption is that each inhabitant wants to live next to at least a given number of inhabitants of the same colour. However, in this version the inhabitants move sequentially rather then simultaniously. Moreover, inhabitants only start moving if there is a satisfactory place (patch) available for them somewhere, and settle only at places that meet their requirements. Added features are separate sliders for the preferences of both colors, and the possibility to change parameters and restart the process from an equilibrium situation.
 
 ## HOW IT WORKS
 
