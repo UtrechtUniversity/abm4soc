@@ -1,3 +1,6 @@
+<img src="screenshot_thresholds.PNG" height="200"  >
+
+
 # Granovetter's threshold model of collective behaviour in a network
 
 ## AUTHOR
