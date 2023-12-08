@@ -1,3 +1,4 @@
+turtles-own [threshold riot? nlinks]
 
 globals [
  time
