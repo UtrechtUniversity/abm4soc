@@ -6,4 +6,4 @@ The repository current includes models for:
 <img src="Granovetter-Thresholds/screenshot_thresholds.PNG" height="200"  >
 
 ## [Schelling's segregation model](Schelling-Segregation)
-<img src="Schelling-Segregation/screenshot_schelling.PNG" height="200"  >
+<img src="Schelling-Segregation/Two-dimensional/screenshot_schelling.PNG" height="200"  >
