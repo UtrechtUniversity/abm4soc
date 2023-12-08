@@ -70,7 +70,7 @@ to move) for each. The total percentage unhappy is plotted. Moreover, each inhab
 
 
 ## CREDITS AND REFERENCES
-Schelling, T. (1978). Micromotives and Macrobehavior. New York: Norton.
+Schelling, T. C. (1969). Models of segregation. The American economic review, 59(2), 488-493.
 
 This model is inspired on: Wilensky, U. (1998). NetLogo Segregation model. http://ccl.northwestern.edu/netlogo/models/Segregation. Center for Connected Learning and Computer-Based Modeling, Northwestern University, Evanston, IL.
 
