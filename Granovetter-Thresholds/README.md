@@ -14,7 +14,7 @@ Agents face a binary decision: to participate or not in a riot, following Granov
 ## HOW TO USE IT
 
 ### Installation
-Intall [Netlogo](https://ccl.northwestern.edu/netlogo/) (version 6). Download the .nlogo file from this repository and open it with Netlogo. 
+Install [Netlogo](https://ccl.northwestern.edu/netlogo/) (version 6). Download the .nlogo file from this repository and open it with Netlogo. 
 
 ### Controls
 The _setup_ bottom sets up the agents and the network on the basis of the parameters below. Click it just once at the beginning of the simulation.
