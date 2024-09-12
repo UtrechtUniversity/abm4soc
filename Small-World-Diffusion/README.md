@@ -9,7 +9,7 @@ This is an SIS model on a Watts-Strogatz small world topology. Nodes are either 
 
 ## HOW IT WORKS
 
-"This model is an adaptation of a model proposed by Duncan Watts and Steve Strogatz (1998). It begins with a network where each person (or "node") is connected to his or her two neighbors on either side... The REWIRING-PROBABILITY slider determines the probability that an edge will get rewired" (so that one of its endpoints goes to a random node instead of a neighbor).  Clicking the setup button will produce different network configurations, all with the same rewiring probability.
+This model is an adaptation of a model proposed by Duncan Watts and Steve Strogatz (1998). It begins with a network where each person (or "node") is connected to his or her two neighbors on either side... The REWIRING-PROBABILITY slider determines the probability that an edge will get rewired" (so that one of its endpoints goes to a random node instead of a neighbor).  Clicking the setup button will produce different network configurations, all with the same rewiring probability.
 
 The prob-infection slider determines the probability that an infected individual will infect a susceptible contact at every time step.
 
