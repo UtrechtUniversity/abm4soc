@@ -7,3 +7,7 @@ The repository currently includes Netlogo implementations of:
 
 ## [Schelling's segregation model](Schelling-Segregation)
 <img src="Schelling-Segregation/Two-dimensional/screenshot_schelling.PNG" height="200"  >
+
+## [Diffusion in a small world network](Small-World-Diffusion)
+<img src="Small-World-Diffusion/screenshot-small-world.PNG" height="200"  >
+
