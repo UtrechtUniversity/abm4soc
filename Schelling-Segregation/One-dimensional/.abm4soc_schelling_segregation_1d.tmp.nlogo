@@ -252,7 +252,6 @@ to update-turtles
     ;; surrounding the current patch
     set rule rule-code-yellow
     set similar-nearby (count turtles with [color = [color] of myself and distance myself < 5 ]) ;; Includes the turtle itself!
-    set similar-others similar-nearby - 1 ;; does not include self, needed for segregation measure
     set other-nearby count turtles   with [color != [color] of myself and distance myself < 5]
     set total-nearby similar-nearby + other-nearby
         if rule = 1[
@@ -290,7 +289,7 @@ to update-turtles
     ;; surrounding the current patch
     set rule rule-code-blue
     set similar-nearby (count turtles with [color = [color] of myself and distance myself < 5 ]) ;; Includes the turtle itself!
-    set similar-others similar-nearby - 1 ;; does not include self, needed for segregation measure
+    set similar-others similar-nearby - 1
     set other-nearby count turtles   with [color != [color] of myself and distance myself < 5]
     set total-nearby similar-nearby + other-nearby
        if rule = 1[
@@ -512,7 +511,7 @@ number
 number
 2
 30
-30.0
+28.0
 1
 1
 NIL
