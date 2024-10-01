@@ -124,13 +124,13 @@ to CheckSpaceyellow   ;procedure to check whether there is at least one place to
         set ok-for-yellow (count turtles-here = 0) ; any mixture
         ]
       if rule-code-yellow = 2[
-        set ok-for-yellow (blue-nearby > (all-nearby / 2) and (count turtles-here = 0)); blues majority
+        set ok-for-yellow (blue-nearby > ((all-nearby + 1) / 2) and (count turtles-here = 0)); blues majority
         ]
       if rule-code-yellow = 3[
-        set ok-for-yellow (yellow-nearby >= (all-nearby / 2) and (count turtles-here = 0)) ; yellows not minority
+        set ok-for-yellow (yellow-nearby + 1 >= ((all-nearby + 1) / 2) and (count turtles-here = 0)) ; yellows not minority
         ]
       if rule-code-yellow = 4[
-        set ok-for-yellow (yellow-nearby > (all-nearby / 2) and (count turtles-here = 0)) ; yellows majority
+        set ok-for-yellow (yellow-nearby + 1 > ((all-nearby + 1) / 2) and (count turtles-here = 0)) ; yellows majority
         ]
 
       if rule-code-yellow = 5[
@@ -141,10 +141,10 @@ to CheckSpaceyellow   ;procedure to check whether there is at least one place to
         set ok-for-yellow (yellow-nearby = 8 and (count turtles-here = 0)) ; full of yellows
         ]
       if rule-code-yellow = 7[
-        set ok-for-yellow (yellow-nearby = blue-nearby and (count turtles-here = 0)) ; equal numbers
+        set ok-for-yellow (yellow-nearby + 1 = blue-nearby and (count turtles-here = 0)) ; equal numbers
         ]
       if rule-code-yellow = 8[
-      set ok-for-yellow (yellow-nearby >= ( %-similar-wanted-by-yellow * all-nearby / 100 )) and (count turtles-here = 0)
+      set ok-for-yellow (yellow-nearby + 1 >= ( %-similar-wanted-by-yellow *  / 100 )) and (count turtles-here = 0)
        ]
     ]
 
@@ -162,13 +162,13 @@ to CheckSpaceBlue   ;procedure to check whether there is at least one place to m
         set ok-for-blue (count turtles-here = 0) ; any mixture
         ]
       if rule-code-blue = 2[
-        set ok-for-blue (yellow-nearby > ( all-nearby / 2 ) and (count turtles-here = 0)) ; yellows majority
+        set ok-for-blue (yellow-nearby > ( (all-nearby + 1) / 2 ) and (count turtles-here = 0)) ; yellows majority
         ]
       if rule-code-blue = 3[
-        set ok-for-blue (blue-nearby >= ( all-nearby / 2 ) and (count turtles-here = 0)) ; blues not minority
+        set ok-for-blue (blue-nearby + 1 >= ( (all-nearby + 1 ) / 2 ) and (count turtles-here = 0)) ; blues not minority
         ]
       if rule-code-blue = 4[
-        set ok-for-blue (blue-nearby > ( all-nearby / 2 ) and (count turtles-here = 0)); blues majority
+        set ok-for-blue (blue-nearby + 1 > ( (all-nearby + 1) / 2 ) and (count turtles-here = 0)); blues majority
         ]
 
       if rule-code-blue = 5[
@@ -178,10 +178,10 @@ to CheckSpaceBlue   ;procedure to check whether there is at least one place to m
         set ok-for-blue (blue-nearby = 8 and (count turtles-here = 0)) ; all blues
         ]
       if rule-code-blue = 7[
-        set ok-for-blue (blue-nearby = yellow-nearby and (count turtles-here = 0)) ; equal numbers
+        set ok-for-blue (blue-nearby  + 1 = yellow-nearby and (count turtles-here = 0)) ; equal numbers
         ]
       if rule-code-blue = 8[
-        set ok-for-blue (blue-nearby >= ( %-similar-wanted-by-blue * all-nearby / 100 )) and (count turtles-here = 0)
+        set ok-for-blue (blue-nearby + 1 >= ( %-similar-wanted-by-blue * ( all-nearby + 1) / 100 )) and (count turtles-here = 0)
         ]
 
   ]
@@ -252,6 +252,7 @@ to update-turtles
     ;; surrounding the current patch
     set rule rule-code-yellow
     set similar-nearby (count turtles with [color = [color] of myself and distance myself < 5 ]) ;; Includes the turtle itself!
+    set similar-others similar-nearby - 1 ;; does not include self, needed for segregation measure
     set other-nearby count turtles   with [color != [color] of myself and distance myself < 5]
     set total-nearby similar-nearby + other-nearby
         if rule = 1[
@@ -289,7 +290,7 @@ to update-turtles
     ;; surrounding the current patch
     set rule rule-code-blue
     set similar-nearby (count turtles with [color = [color] of myself and distance myself < 5 ]) ;; Includes the turtle itself!
-    set similar-others similar-nearby - 1
+    set similar-others similar-nearby - 1 ;; does not include self, needed for segregation measure
     set other-nearby count turtles   with [color != [color] of myself and distance myself < 5]
     set total-nearby similar-nearby + other-nearby
        if rule = 1[
@@ -335,7 +336,7 @@ end
 
 
 to update-globals
-  let similar-neighbors sum [similar-nearby] of turtles
+  let similar-neighbors sum [similar-others] of turtles
   let total-neighbors sum [total-nearby] of turtles
   if total-neighbors = 0 [
     set percent-similar 0
@@ -511,7 +512,7 @@ number
 number
 2
 30
-28.0
+30.0
 1
 1
 NIL
