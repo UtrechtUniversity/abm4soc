@@ -336,7 +336,7 @@ end
 
 
 to update-globals
-  let similar-neighbors sum [similar-nearby] of turtles
+  let similar-neighbors sum [similar-others] of turtles
   let total-neighbors sum [total-nearby] of turtles
   if total-neighbors = 0 [
     set percent-similar 0
