@@ -17,8 +17,9 @@ globals [
 turtles-own [
   happy?       ;; for each turtle, indicates whether at least %-similar-wanted percent of
                ;; that turtles' neighbors are the same color as the turtle
-  similar-nearby   ;; how many neighboring patches have a turtle with my color?
+  similar-nearby   ;; how many patches in the neighborhood have a turtle with my color? ;; includes self
   other-nearby ;; how many have a turtle of another color?
+  similar-others ;; how many neighboring patches have a turtle with my color? ;; does not include self
   total-nearby  ;; sum of previous two variables
   turn ;; true if it's this turtle's turn to move
   rule
@@ -116,13 +117,13 @@ to CheckSpaceRed   ;procedure to check whether there is at least one place to mo
         set ok-for-red (count turtles-here = 0) ; any mixture
         ]
       if rule-code-red = 2[
-        set ok-for-red (blue-nearby > (all-nearby / 2) and (count turtles-here = 0)); blues majority
+        set ok-for-red (blue-nearby > ((all-nearby + 1) / 2) and (count turtles-here = 0)); blues majority
         ]
       if rule-code-red = 3[
-        set ok-for-red (red-nearby >= (all-nearby / 2) and (count turtles-here = 0)) ; reds not minority
+        set ok-for-red (red-nearby + 1 >= ((all-nearby + 1) / 2) and (count turtles-here = 0)) ; reds not minority
         ]
       if rule-code-red = 4[
-        set ok-for-red (red-nearby > (all-nearby / 2) and (count turtles-here = 0)) ; reds majority
+        set ok-for-red (red-nearby + 1 > ((all-nearby + 1)  / 2) and (count turtles-here = 0)) ; reds majority
         ]
 
       if rule-code-red = 5[
@@ -130,13 +131,13 @@ to CheckSpaceRed   ;procedure to check whether there is at least one place to mo
         ]
 
       if rule-code-red = 6[
-        set ok-for-red (red-nearby = 8 and (count turtles-here = 0)) ; full of reds
+        set ok-for-red (red-nearby + 1 = 8 and (count turtles-here = 0)) ; full of reds
         ]
       if rule-code-red = 7[
-        set ok-for-red (red-nearby = blue-nearby and (count turtles-here = 0)) ; equal numbers
+        set ok-for-red (red-nearby + 1 = blue-nearby and (count turtles-here = 0)) ; equal numbers
         ]
       if rule-code-red = 8[
-      set ok-for-red (red-nearby >= ( %-similar-wanted-by-red * all-nearby / 100 )) and (count turtles-here = 0)
+      set ok-for-red (red-nearby + 1 >= ( %-similar-wanted-by-red * (all-nearby + 1) / 100 )) and (count turtles-here = 0)
        ]
     ]
 
@@ -152,26 +153,26 @@ to CheckSpaceBlue   ;procedure to check whether there is at least one place to m
         set ok-for-blue (count turtles-here = 0) ; any mixture
         ]
       if rule-code-blue = 2[
-        set ok-for-blue (red-nearby > ( all-nearby / 2 ) and (count turtles-here = 0)) ; reds majority
+        set ok-for-blue (red-nearby > (( all-nearby + 1) / 2 ) and (count turtles-here = 0)) ; reds majority
         ]
       if rule-code-blue = 3[
-        set ok-for-blue (blue-nearby >= ( all-nearby / 2 ) and (count turtles-here = 0)) ; blues not minority
+        set ok-for-blue (blue-nearby + 1 >= ( ( all-nearby + 1) / 2 ) and (count turtles-here = 0)) ; blues not minority
         ]
       if rule-code-blue = 4[
-        set ok-for-blue (blue-nearby > ( all-nearby / 2 ) and (count turtles-here = 0)); blues majority
+        set ok-for-blue (blue-nearby + 1 > ( ( all-nearby + 1) / 2 ) and (count turtles-here = 0)); blues majority
         ]
 
       if rule-code-blue = 5[
         set ok-for-blue (red-nearby = 0 and (count turtles-here = 0)) ; no reds
         ]
       if rule-code-blue = 6[
-        set ok-for-blue (blue-nearby = 8 and (count turtles-here = 0)) ; all blues
+        set ok-for-blue (blue-nearby + 1 = 8 and (count turtles-here = 0)) ; all blues
         ]
       if rule-code-blue = 7[
-        set ok-for-blue (blue-nearby = red-nearby and (count turtles-here = 0)) ; equal numbers
+        set ok-for-blue (blue-nearby + 1 = red-nearby and (count turtles-here = 0)) ; equal numbers
         ]
       if rule-code-blue = 8[
-        set ok-for-blue (blue-nearby >= ( %-similar-wanted-by-blue * all-nearby / 100 )) and (count turtles-here = 0)
+        set ok-for-blue (blue-nearby + 1 >= ( %-similar-wanted-by-blue * ( all-nearby + 1) / 100 )) and (count turtles-here = 0)
         ]
 
   ]
@@ -241,10 +242,9 @@ to update-turtles
     ;; in next two lines, we use "neighbors" to test the eight patches
     ;; surrounding the current patch
     set rule rule-code-red
-    set similar-nearby count (turtles-on neighbors)
-      with [color = [color] of myself]
-    set other-nearby count (turtles-on neighbors)
-      with [color != [color] of myself]
+    set similar-nearby count (turtles-on neighbors)  with [color = [color] of myself] + 1 ;; Includes self!
+    set other-nearby count (turtles-on neighbors)    with [color != [color] of myself]
+    set similar-others similar-nearby - 1 ;; does not include self, needed for segregation measure
     set total-nearby similar-nearby + other-nearby
         if rule = 1[
         set happy? true
@@ -280,10 +280,9 @@ to update-turtles
     ;; in next two lines, we use "neighbors" to test the eight patches
     ;; surrounding the current patch
     set rule rule-code-blue
-    set similar-nearby count (turtles-on neighbors)
-      with [color = [color] of myself]
-    set other-nearby count (turtles-on neighbors)
-      with [color != [color] of myself]
+    set similar-nearby count (turtles-on neighbors)  with [color = [color] of myself] + 1 ;; Includes self!
+    set other-nearby count (turtles-on neighbors)    with [color != [color] of myself]
+    set similar-others similar-nearby - 1 ;; does not include self, needed for segregation measure
     set total-nearby similar-nearby + other-nearby
        if rule = 1[
         set happy? true
@@ -328,7 +327,7 @@ end
 
 
 to update-globals
-  let similar-neighbors sum [similar-nearby] of turtles
+  let similar-neighbors sum [similar-others] of turtles ;; uses count that does not include self
   let total-neighbors sum [total-nearby] of turtles
   if total-neighbors = 0 [
     set percent-similar 0
@@ -504,7 +503,7 @@ number
 number
 2
 360
-336.0
+360.0
 2
 1
 NIL
@@ -568,7 +567,7 @@ SLIDER
 %-similar-wanted-by-blue
 0
 100
-0.0
+40.0
 1
 1
 %
@@ -637,7 +636,7 @@ CHOOSER
 rule-red
 rule-red
 "1: any mixture" "2: majority of blues" "3: reds not minority" "4: reds are majority" "5: no blues" "6: full of reds" "7: equal numbers of reds and blues" "8: percentages"
-2
+7
 
 CHOOSER
 13
@@ -647,7 +646,7 @@ CHOOSER
 rule-blue
 rule-blue
 "1: any mixture" "2: majority of reds" "3: blues not minority" "4: blues are majority" "5: no reds" "6: full of blues" "7: equal numbers of reds and blues" "8: percentages"
-2
+7
 
 SLIDER
 322
@@ -658,7 +657,7 @@ SLIDER
 %-similar-wanted-by-red
 0
 100
-0.0
+40.0
 1
 1
 %
