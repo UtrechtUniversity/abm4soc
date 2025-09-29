@@ -1,0 +1,1294 @@
+<?xml version="1.0" encoding="utf-8"?>
+<model version="NetLogo 7.0.0" snapToGrid="false">
+  <code><![CDATA[;; VERSION OF SCHELLING'S MODEL WITH ONE-DIMENSIONAL WORLD, NEIGHBORS ON FOUR SURROUNDING PATCHES (DISTANCE 2)
+
+globals [
+  percent-similar  ;; on the average, what percent of a turtle's neighbors
+                   ;; are the same color as that turtle?
+  percent-unhappy  ;; what percent of the turtles are unhappy?
+  perc-unhappy-yellow ;; what percent of the yellow turtles are unhappy?
+  perc-unhappy-blue ;; what percent of the blue turtles are unhappy?
+  place-for-yellow
+  place-for-blue
+  haltt
+  time
+  exact
+  rule-code-yellow
+  rule-code-blue
+  n-blue
+]
+
+turtles-own [
+  happy?       ;; for each turtle, indicates whether at least %-similar-wanted percent of
+               ;; that turtles' neighbors are the same color as the turtle
+  similar-nearby   ;; how many patches in the neighborhood have a turtle with my color? ;; includes self
+  similar-others ;; how many neighboring patches have a turtle with my color? ;; does not include self
+  other-nearby ;; how many have a turtle of another color?
+  total-nearby  ;; sum of previous two variables
+  turn ;; true if it's this turtle's turn to move
+  rule
+]
+
+patches-own [
+  yellow-nearby
+  all-nearby
+  blue-nearby
+  ok-for-yellow
+  ok-for-blue
+  test
+  rrule
+]
+
+
+breed [ blues a-blue ]
+breed [ yellows a-yellow ]
+
+
+to setup
+  ;; (for this model to work with NetLogo's new plotting features,
+  ;; __clear-all-and-reset-ticks should be replaced with clear-all at
+  ;; the beginning of your setup procedure and reset-ticks at the end
+  ;; of the procedure.)
+  __clear-all-and-reset-ticks
+  set exact false
+  set haltt 0
+  set time 0
+  if number > count patches
+    [ user-message (word "This pond only has room for "  count patches  " turtles.")
+      stop ]
+
+;;change rule descriptions from chooser to codes for convenience
+  if rule-yellow = "1: any mixture"[set rule-code-yellow 1]
+  if rule-yellow = "2: majority of blues"[set rule-code-yellow 2]
+  if rule-yellow = "3: yellows not minority"[set rule-code-yellow 3]
+  if rule-yellow = "4: yellows are majority"[set rule-code-yellow 4]
+  if rule-yellow = "5: no blues"[set rule-code-yellow 5]
+  if rule-yellow = "6: full of yellows"[set rule-code-yellow 6]
+  if rule-yellow = "7: egual numbers of yellows and blues"[set rule-code-yellow 7]
+  if rule-yellow = "8: percentages"[set rule-code-yellow 8]
+
+  if rule-blue = "1: any mixture"[set rule-code-blue 1]
+  if rule-blue = "2: majority of yellows"[set rule-code-blue 2]
+  if rule-blue = "3: blues not minority"[set rule-code-blue 3]
+  if rule-blue = "4: blues are majority"[set rule-code-blue 4]
+  if rule-blue = "5: no yellows"[set rule-code-blue 5]
+  if rule-blue = "6: full of blues"[set rule-code-blue 6]
+  if rule-blue = "7: egual numbers of yellows and blues"[set rule-code-blue 7]
+  if rule-blue = "8: percentages"[set rule-code-blue 8]
+
+
+  ;; create turtles on random patches.
+  ask n-of number patches
+    [ sprout-yellows 1
+      [ set color yellow
+      set shape "face happy"]
+      ]
+  ;; turn part of the turtles blue
+
+  set n-blue ((number * %-blue) / 100)  ; number of blues
+  if n-blue < 1 [
+    set n-blue 1            ; make sure that we have at least one blue
+    ]
+  if n-blue > (number - 1) [
+    set n-blue (number - 1) ; .... and at least one yellow
+    ]
+  ask n-of n-blue turtles
+    [ set breed blues set color blue set shape "face happy"]
+  update-variables
+  do-plots
+
+
+end
+
+to set-sequence ;procedure to determine the sequence of moves among the turtles. Samples only among unhappy turtles to speed up the procedure
+  ask turtles [
+    set turn false
+    ]
+  if count turtles with [happy? = false] > 0 [
+    ask one-of turtles with [happy? = false][
+      set turn true
+      ]
+    ]
+end
+
+to CheckSpaceyellow   ;procedure to check whether there is at least one place to move to for a yellow turtle. Includes self in all rules!
+  ask patches[
+    ;set test count yellows-on patch-set (patches with [distance myself < 5 and distance myself > 0]) ;test variable
+    ;set yellow-nearby count (yellows-on neighbors )  ;;TODO: TO BE UPDATED USING DISTANCE <3 & DISTANCE>1
+    set yellow-nearby count yellows-on patch-set (patches with [distance myself < 5 and distance myself > 0])
+
+    ;set blue-nearby count (blues-on neighbors) ;;TODO: TO BE UPDATED USING DISTANCE <3 & DISTANCE>1
+    set blue-nearby count blues-on patch-set (patches with [distance myself < 5 and distance myself > 0])
+    set all-nearby blue-nearby + yellow-nearby
+
+
+      if rule-code-yellow = 1[
+        set ok-for-yellow (count turtles-here = 0) ; any mixture
+        ]
+      if rule-code-yellow = 2[
+        set ok-for-yellow (blue-nearby > ((all-nearby + 1) / 2) and (count turtles-here = 0)); blues majority
+        ]
+      if rule-code-yellow = 3[
+        set ok-for-yellow (yellow-nearby + 1 >= ((all-nearby + 1) / 2) and (count turtles-here = 0)) ; yellows not minority
+        ]
+      if rule-code-yellow = 4[
+        set ok-for-yellow (yellow-nearby + 1 > ((all-nearby + 1) / 2) and (count turtles-here = 0)) ; yellows majority
+        ]
+
+      if rule-code-yellow = 5[
+        set ok-for-yellow (blue-nearby = 0 and (count turtles-here = 0)) ; no blues
+        ]
+
+      if rule-code-yellow = 6[
+        set ok-for-yellow (yellow-nearby = 8 and (count turtles-here = 0)) ; full of yellows
+        ]
+      if rule-code-yellow = 7[
+        set ok-for-yellow (yellow-nearby + 1 = blue-nearby and (count turtles-here = 0)) ; equal numbers
+        ]
+      if rule-code-yellow = 8[
+      set ok-for-yellow (yellow-nearby + 1 >= ( %-similar-wanted-by-yellow * (all-nearby + 1) / 100 )) and (count turtles-here = 0)
+       ]
+    ]
+
+  set place-for-yellow count patches with [ok-for-yellow = true]
+end
+
+to CheckSpaceBlue   ;procedure to check whether there is at least one place to move to for a blue turtle. Includes self in all rules!
+  ask patches[
+
+    set yellow-nearby count yellows-on patch-set (patches with [distance myself < 5 and distance myself > 0])
+    set blue-nearby count blues-on patch-set (patches with [distance myself < 5 and distance myself > 0])
+    set all-nearby blue-nearby + yellow-nearby
+
+      if rule-code-blue = 1[
+        set ok-for-blue (count turtles-here = 0) ; any mixture
+        ]
+      if rule-code-blue = 2[
+        set ok-for-blue (yellow-nearby > ( (all-nearby + 1) / 2 ) and (count turtles-here = 0)) ; yellows majority
+        ]
+      if rule-code-blue = 3[
+        set ok-for-blue (blue-nearby + 1 >= ( (all-nearby + 1 ) / 2 ) and (count turtles-here = 0)) ; blues not minority
+        ]
+      if rule-code-blue = 4[
+        set ok-for-blue (blue-nearby + 1 > ( (all-nearby + 1) / 2 ) and (count turtles-here = 0)); blues majority
+        ]
+
+      if rule-code-blue = 5[
+        set ok-for-blue (yellow-nearby = 0 and (count turtles-here = 0)) ; no yellows
+        ]
+      if rule-code-blue = 6[
+        set ok-for-blue (blue-nearby = 8 and (count turtles-here = 0)) ; all blues
+        ]
+      if rule-code-blue = 7[
+        set ok-for-blue (blue-nearby  + 1 = yellow-nearby and (count turtles-here = 0)) ; equal numbers
+        ]
+      if rule-code-blue = 8[
+        set ok-for-blue (blue-nearby + 1 >= ( %-similar-wanted-by-blue * ( all-nearby + 1) / 100 )) and (count turtles-here = 0)
+        ]
+
+  ]
+  set place-for-blue count patches with [ok-for-blue = true]
+end
+
+to go
+  ;if not any? turtles with [not happy?] [ user-message "everybody is happy" ]
+  ;if not any? turtles with [not happy?] [ stop ]
+  update-variables
+  do-plots
+  set haltt 0
+  if all? turtles [happy?] [stop]
+  if (place-for-yellow = 0 or perc-unhappy-yellow = 0) and (place-for-blue = 0 or perc-unhappy-blue = 0 )[stop]
+
+  update-variables
+  move-unhappy-turtles
+  do-plots
+  set time time + 1
+
+  if haltt = 1 [
+  update-variables
+  stop ]
+
+end
+
+to halt
+  set haltt 1
+end
+
+
+to move-unhappy-turtles
+  ask yellows with [ not happy? and turn = true] [
+     if place-for-yellow > 0 [
+       find-new-spot
+       ]
+     ]
+  ask blues with [ not happy? and turn = true] [
+     if place-for-blue > 0 [
+       find-new-spot
+       ]
+     ]
+end
+
+to find-new-spot
+  rt random-float 360
+  fd random-float 1
+  if color = yellow[
+      if any? other turtles-here or [not ok-for-yellow] of(patch-here)
+          [ find-new-spot ]          ;; keep going until we find an unoccupied patch
+  ]
+  if color = blue[
+      if any? other turtles-here or [not ok-for-blue] of(patch-here)
+          [ find-new-spot ]          ;; keep going until we find an unoccupied patch
+  ]
+  setxy pxcor pycor  ;; move to center of patch
+end
+
+to update-variables
+   update-rules
+   update-turtles
+   update-globals
+end
+
+to update-turtles
+    ask turtles with [color = yellow][
+    ;; in next two lines, we use "neighbors" to test the eight patches
+    ;; surrounding the current patch
+    set rule rule-code-yellow
+    set similar-nearby (count turtles with [color = [color] of myself and distance myself < 5 ]) ;; Includes the turtle itself!
+    set similar-others similar-nearby - 1 ;; does not include self, needed for segregation measure
+    set other-nearby count turtles   with [color != [color] of myself and distance myself < 5]
+    set total-nearby similar-nearby + other-nearby
+        if rule = 1[
+        set happy? true
+        ]
+      if rule = 2[
+        set happy? (other-nearby > (total-nearby / 2))
+        ]
+      if rule = 3[
+        set happy? (similar-nearby >= ( total-nearby / 2 ))
+        ]
+      if rule = 4[
+        set happy? (similar-nearby > ( total-nearby / 2 ))
+        ]
+
+      if rule = 5[
+        set happy? (other-nearby = 0)
+        ]
+
+      if rule = 6[
+        set happy? (similar-nearby = 8)
+        ]
+
+      if rule = 7[
+        set happy? (similar-nearby = other-nearby)
+        ]
+
+    if rule = 8[
+      set happy? similar-nearby >= ( %-similar-wanted-by-yellow * total-nearby / 100)
+    ]
+  ]
+
+    ask turtles with [color = blue][
+    ;; in next two lines, we use "neighbors" to test the eight patches
+    ;; surrounding the current patch
+    set rule rule-code-blue
+    set similar-nearby (count turtles with [color = [color] of myself and distance myself < 5 ]) ;; Includes the turtle itself!
+    set similar-others similar-nearby - 1 ;; does not include self, needed for segregation measure
+    set other-nearby count turtles   with [color != [color] of myself and distance myself < 5]
+    set total-nearby similar-nearby + other-nearby
+       if rule = 1[
+        set happy? true
+        ]
+      if rule = 2[
+        set happy? (other-nearby > (total-nearby / 2))
+        ]
+      if rule = 3[
+        set happy? (similar-nearby >= (total-nearby / 2))
+        ]
+      if rule = 4[
+        set happy? (similar-nearby > (total-nearby / 2))
+        ]
+
+      if rule = 5[
+        set happy? (other-nearby = 0)
+        ]
+
+      if rule = 6[
+        set happy? (similar-nearby = 8)
+        ]
+
+      if rule = 7[
+        set happy? (similar-nearby = other-nearby)
+        ]
+
+
+    if rule = 8[
+      set happy? similar-nearby >= ( %-similar-wanted-by-blue * total-nearby / 100)
+    ]
+
+  ]
+  ask turtles with [happy?][
+    set shape "face happy"
+    ]
+  ask turtles with [not happy?][
+    set shape "face sad"
+    ]
+  set-sequence
+end
+
+
+
+to update-globals
+  let similar-neighbors sum [similar-others] of turtles
+  let total-neighbors sum [total-nearby] of turtles
+  if total-neighbors = 0 [
+    set percent-similar 0
+    ]
+  if total-neighbors > 0 [
+    set percent-similar (similar-neighbors / total-neighbors) * 100
+  ]
+  set percent-unhappy (count turtles with [not happy?]) / (count turtles) * 100
+
+  set perc-unhappy-yellow (count turtles with [not happy? and color = yellow]) / (count turtles with [color = yellow]) * 100
+  set perc-unhappy-blue (count turtles with [not happy? and color = blue]) / (count turtles with [color = blue]) * 100
+  CheckSpaceyellow
+  CheckSpaceBlue
+end
+
+to update-rules
+  ;;change rule descriptions from chooser to codes for convenience
+  if rule-yellow = "1: any mixture"[set rule-code-yellow 1]
+  if rule-yellow = "2: majority of blues"[set rule-code-yellow 2]
+  if rule-yellow = "3: yellows not minority"[set rule-code-yellow 3]
+  if rule-yellow = "4: yellows are majority"[set rule-code-yellow 4]
+  if rule-yellow = "5: no blues"[set rule-code-yellow 5]
+  if rule-yellow = "6: full of yellows"[set rule-code-yellow 6]
+  if rule-yellow = "7: egual numbers of yellows and blues"[set rule-code-yellow 7]
+  if rule-yellow = "8: percentages"[set rule-code-yellow 8]
+
+  if rule-blue = "1: any mixture"[set rule-code-blue 1]
+  if rule-blue = "2: majority of yellows"[set rule-code-blue 2]
+  if rule-blue = "3: blues not minority"[set rule-code-blue 3]
+  if rule-blue = "4: blues are majority"[set rule-code-blue 4]
+  if rule-blue = "5: no yellows"[set rule-code-blue 5]
+  if rule-blue = "6: full of blues"[set rule-code-blue 6]
+  if rule-blue = "7: egual numbers of yellows and blues"[set rule-code-blue 7]
+  if rule-blue = "8: percentages"[set rule-code-blue 8]
+end
+
+to do-plots
+  set-current-plot "Percent Similar"
+  plot percent-similar
+  set-current-plot "Percent Unhappy"
+  plot percent-unhappy
+end
+
+
+; *** NetLogo Model Copyright Notice ***
+;
+; This model was created as part of the project: CONNECTED MATHEMATICS:
+; MAKING SENSE OF COMPLEX PHENOMENA THROUGH BUILDING OBJECT-BASED PARALLEL
+; MODELS (OBPML).  The project gratefully acknowledges the support of the
+; National Science Foundation (Applications of Advanced Technologies
+; Program) -- grant numbers yellow #9552950 and REC #9632612.
+;
+; Copyright 1998 by Uri Wilensky. All rights reserved.
+;
+; Permission to use, modify or yellowistribute this model is hereby granted,
+; provided that both of the following requirements are followed:
+; a) this copyright notice is included.
+; b) this model will not be yellowistributed for profit without permission
+;    from Uri Wilensky.
+; Contact Uri Wilensky for appropriate licenses for yellowistribution for
+; profit.
+;
+; This model was converted to NetLogo as part of the project:
+; PARTICIPATORY SIMULATIONS: NETWORK-BASED DESIGN FOR SYSTEMS LEARNING IN
+; CLASSROOMS.  The project gratefully acknowledges the support of the
+; National Science Foundation (REPP program) -- grant number REC #9814682.
+; Converted from StarLogoT to NetLogo, 2001.  Updated 2002.
+;
+; To refer to this model in academic publications, please use:
+; Wilensky, U. (1998).  NetLogo Segregation model.
+; http://ccl.northwestern.edu/netlogo/models/Segregation.
+; Center for Connected Learning and Computer-Based Modeling,
+; Northwestern University, Evanston, IL.
+;
+; In other publications, please use:
+; Copyright 1998 by Uri Wilensky.  All rights reserved.  See
+; http://ccl.northwestern.edu/netlogo/models/Segregation
+; for terms of use.
+;
+; *** End of NetLogo Model Copyright Notice ***]]></code>
+  <widgets>
+    <view x="4" wrappingAllowedX="false" y="96" frameRate="30.0" minPycor="0" height="43" showTickCounter="true" patchSize="39.0" fontSize="10" wrappingAllowedY="true" width="1213" tickCounterLabel="ticks" maxPycor="0" updateMode="0" maxPxcor="15" minPxcor="-15"></view>
+    <monitor x="202" precision="1" y="542" height="105" fontSize="26" width="174" display="% Unhappy">percent-unhappy</monitor>
+    <monitor x="19" precision="1" y="544" height="105" fontSize="26" width="162" display="% Similar">percent-similar</monitor>
+    <plot x="3" autoPlotX="true" yMax="100.0" autoPlotY="true" yAxis="%" y="247" xMin="0.0" height="227" legend="false" xMax="25.0" yMin="0.0" width="320" xAxis="time" display="Percent Similar">
+      <setup></setup>
+      <update></update>
+      <pen interval="1.0" mode="0" display="percent" color="-2674135" legend="true">
+        <setup></setup>
+        <update></update>
+      </pen>
+    </plot>
+    <plot x="339" autoPlotX="true" yMax="100.0" autoPlotY="true" yAxis="%" y="248" xMin="0.0" height="230" legend="false" xMax="25.0" yMin="0.0" width="330" xAxis="time" display="Percent Unhappy">
+      <setup></setup>
+      <update></update>
+      <pen interval="1.0" mode="0" display="percent" color="-10899396" legend="true">
+        <setup></setup>
+        <update></update>
+      </pen>
+    </plot>
+    <slider x="954" step="1" y="247" max="30" width="240" display="number" height="50" min="2" direction="Horizontal" default="30.0" variable="number"></slider>
+    <button x="760" actionKey="S" y="411" height="77" disableUntilTicks="false" forever="false" kind="Observer" width="110" display="setup">setup</button>
+    <button x="908" actionKey="G" y="410" height="75" disableUntilTicks="false" forever="true" kind="Observer" width="109" display="go">go</button>
+    <slider x="693" step="1" y="248" max="99" width="246" display="%-blue" height="50" min="1" direction="Horizontal" default="50.0" variable="%-blue" units="%"></slider>
+    <slider x="948" step="1" y="721" max="100" width="190" display="%-similar-wanted-by-blue" height="50" min="0" direction="Horizontal" default="39.0" variable="%-similar-wanted-by-blue" units="%"></slider>
+    <monitor x="260" precision="1" y="713" height="60" fontSize="11" width="117" display="% Unhappy yellow">perc-unhappy-yellow</monitor>
+    <monitor x="395" precision="1" y="713" height="60" fontSize="11" width="105" display="% Unhappy blue">perc-unhappy-blue</monitor>
+    <monitor x="395" precision="0" y="544" height="105" fontSize="26" width="143" display="Time">time</monitor>
+    <monitor x="137" precision="1" y="712" height="60" fontSize="11" width="105" display="Places for yellow">place-for-yellow</monitor>
+    <monitor x="10" precision="1" y="712" height="60" fontSize="11" width="104" display="Places for blue">place-for-blue</monitor>
+    <chooser x="638" y="644" height="60" variable="rule-yellow" current="2" width="259" display="rule-yellow">
+      <choice type="string" value="1: any mixture"></choice>
+      <choice type="string" value="2: majority of blues"></choice>
+      <choice type="string" value="3: yellows not minority"></choice>
+      <choice type="string" value="4: yellows are majority"></choice>
+      <choice type="string" value="5: no blues"></choice>
+      <choice type="string" value="6: full of yellows"></choice>
+      <choice type="string" value="7: egual numbers of yellows and blues"></choice>
+      <choice type="string" value="8: percentages"></choice>
+    </chooser>
+    <chooser x="637" y="717" height="60" variable="rule-blue" current="2" width="259" display="rule-blue">
+      <choice type="string" value="1: any mixture"></choice>
+      <choice type="string" value="2: majority of yellows"></choice>
+      <choice type="string" value="3: blues not minority"></choice>
+      <choice type="string" value="4: blues are majority"></choice>
+      <choice type="string" value="5: no yellows"></choice>
+      <choice type="string" value="6: full of blues"></choice>
+      <choice type="string" value="7: egual numbers of yellows and blues"></choice>
+      <choice type="string" value="8: percentages"></choice>
+    </chooser>
+    <slider x="946" step="1" y="648" max="100" width="191" display="%-similar-wanted-by-yellow" height="50" min="0" direction="Horizontal" default="35.0" variable="%-similar-wanted-by-yellow" units="%"></slider>
+    <note x="837" y="585" backgroundDark="0" fontSize="14" width="150" markdown="false" height="18" textColorDark="-1" textColorLight="-16777216" backgroundLight="0">Preference Settings</note>
+    <note x="724" y="615" backgroundDark="0" fontSize="11" width="45" markdown="false" height="18" textColorDark="-1" textColorLight="-16777216" backgroundLight="0">Rules</note>
+    <note x="1011" y="614" backgroundDark="0" fontSize="11" width="78" markdown="false" height="19" textColorDark="-1" textColorLight="-16777216" backgroundLight="0">Percentages</note>
+    <note x="240" y="165" backgroundDark="0" fontSize="30" width="150" markdown="false" height="43" textColorDark="-1" textColorLight="-16777216" backgroundLight="0">Output</note>
+    <note x="879" y="199" backgroundDark="0" fontSize="14" width="100" markdown="false" height="18" textColorDark="-1" textColorLight="-16777216" backgroundLight="0">Basic Settings</note>
+    <note x="727" y="225" backgroundDark="0" fontSize="11" width="150" markdown="false" height="18" textColorDark="-1" textColorLight="-16777216" backgroundLight="0">Percentage blue</note>
+    <note x="1027" y="228" backgroundDark="0" fontSize="11" width="150" markdown="false" height="18" textColorDark="-1" textColorLight="-16777216" backgroundLight="0">Number of inhabitants</note>
+  </widgets>
+  <info>## WHAT IS IT?
+
+This project is another implementation of Schelling's model of social segregation. It is based on the project "Segregation" from netlogo's standard models library, but some respects closer to Schelling's original formulation of the model, and with some added features. As in the original version the basic assumption is that each inhabitant wants to live next to at least a given number of inhabitants of the same colour. However, in this version the inhabitants move sequentially rather then simultaniously. Moreover, inhabitants only start moving if there is a satisfactory place (patch) available for them somewhere, and settle only at places that meet their requirements. Added features are separate sliders for the preferences of both colors, and the possibility to change parameters and restart the process from an equilibrium situation.
+
+## HOW IT WORKS
+
+The program is a rather close imitation of Schellings original model. It  
+consists of a "city" made of a square grid, in which two groups of  
+"inhabitants" (or actors) live, the Reds and the Blues.  Initially, all  
+inhabitants are randomly distributed around the city. Each inhabitant has a  
+certain number of "neighbors"; these are the actors occupying the eight squares  
+surrounding the square on which the actor "lives". Thus, each inhabitant can  
+have between zero and eight neighbors.  Actually, the city is not a square but  
+a 3-dimensional "torus", which means that the upper edge touches to lower edges  
+and the right edge touches the left edge, such that the city has no borders. 
+
+Now, as in Schelling's model, we let the inhabitants evaluate there current location, based on a certain preference rules.  
+These rules determine whether an actor is happy with his current location or not.   
+In this simulation, we implemented eight different preference rules.   
+What follows is a short description of the rules for the BLUE actors, but they are symmetric for the Reds.
+
+"1: any mixture"  
+According to this rule, the blue actors are happy with every mixtures of neighbors.
+
+"2: majority of reds"  
+Blue actors are happy if the majority of their neighbors are red.
+
+"3: blues not minority"  
+Blue actors are happy if at least half of their neighbors are blue.
+
+"4: blues are majority"  
+Blue actors are happy if more than half of their neighbors are blue.
+
+"5: no reds"  
+Blue actors are happy only if they have no red neighbors at all.
+
+"6: full of blues"  
+Blue actors are happy only if they have eight blue neighbors.
+
+"7: egual numbers of reds and blues"  
+Blue actors are happy only if they have as many blue neighbors as they have red neighbors. 
+
+"8: percentages"  
+This is actually not really a rule. It means that the preference is determined by a certain percentage, which you have to set separately (as we'll explain below).  
+Blue actors are happy only if the share of similar (=blue) neighbors is AT LEAST this percentage. Thus, if the percentage is set at 40%, Blues are happy with their location if 40% or more of their neighbors are also Blues.
+
+The dynamic process works as follows: In every step, every inhabitant decides  
+whether she is happy with her current location or not (you will see their faces  
+change accordingly). Then, the computer checks how many empty places exist that  
+would satisfy the preferences of Reds and Blues, respectively. Next, one  
+unhappy actor is randomly selected. If there are places available, she will  
+start to move around in a random fashion until she has found a place that  
+satisfies her preferences. This process is repeated until:  
+- There are no good places for Blue Left, OR all Blues are happy  
+AND  
+- There are no good places for Red Left, OR all Reds are happy.  
+(Verify for yourself that this is indeed an equilibrium).
+
+
+
+## HOW TO USE IT
+
+## 1. CHOOSE THE BASIC SETTINGS
+
+Use the slider labeled "Number of inhabitants" to set the total number of inhabitants in the city, and the %-BLUE slider to change the percentage of blue inhabitants. Use the "rule-red" and "rule-blue" buttons to choose the preferences of the red and blue inhabitants, respectively. If you change the "Type of rule" button to "%-(Left)",  you can use the sliders on the left to choose the preferences as percentages rather than rules. When you're done, click the SETUP button once, which creates a random starting situation.   
+(This will not change anything on the screen yet). When you're done, press the "Setup" button in the section "Controls" (pressing "s" on your keyboard also works).   
+This will create a starting situation according to your specifications, with the blue and red inhabitants distributed randomly across the city.
+
+## 2. CHOOSE THE INHABITANTS' PREFERENCES
+
+Now choose how the inhabitants evaluate  
+their neighborhoods. You can change the preferences of both the red and blue  
+inhabitants separately, using the drop-down menus named "rule-red" and  
+"rule-blue", under "Rules" in the section "Preference Settings". If you want to  
+use precentages rather than fixed rules (see above), you first need to select  
+Rule 8 under rules. Then, you can select a percentage using the percentage  
+sliders on the right. If Rule 8 is not selected, the percentage sliders have no effect.
+
+
+## 3. RUN THE SIMULATION
+
+Now you are ready to start the simulation. Click GO (or press "g") under  
+"Controls" to start the simulation. One by one unhappy inhabitants move to a  
+patch that meets their requirements, as long as suitable places are available.  
+To stop the process, you can click the GO button again.  After the process has  
+settled down, you may change the preferences of the inhabitants, and continue  
+the simulation to by pressing GO again. 
+
+## 4. READ THE RESULTS
+
+The "Percent Similar" monitor shows the average percentage of same-color  
+neighbors for each inhabitant; this is our measure of segregation. It starts at  
+about 0.5, since each inhabitant starts (on average) with an equal number of red  
+and blue inhabitants as neighbors. The "Percent Unhappy" monitors show the percent  
+of inhabitants that have fewer same-color neighbors than they want (and thus want  
+to move) for each. The total percentage unhappy is plotted. Moreover, each  
+inhabitant also shows it's mood. "Places for red" and "Places for blue" show the  
+number of satisfactory places available for each color. It may happen that some  
+inhabitants are still unhappy while there are no longer any places available for  
+them. It that case they just don't move. 
+
+
+## CREDITS AND REFERENCES
+
+Schelling, T. (1978). Micromotives and Macrobehavior. New York: Norton.
+
+This model is an extension of the following:  
+Wilensky, U. (1998).  NetLogo Segregation model. http://ccl.northwestern.edu/netlogo/models/Segregation. Center for Connected Learning and Computer-Based Modeling, Northwestern University, Evanston, IL.
+
+This version by Corten, Rense (2006), Utrecht University</info>
+  <turtleShapes>
+    <shape name="default" rotatable="true" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="5"></point>
+        <point x="40" y="250"></point>
+        <point x="150" y="205"></point>
+        <point x="260" y="250"></point>
+      </polygon>
+    </shape>
+    <shape name="airplane" rotatable="true" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="0"></point>
+        <point x="135" y="15"></point>
+        <point x="120" y="60"></point>
+        <point x="120" y="105"></point>
+        <point x="15" y="165"></point>
+        <point x="15" y="195"></point>
+        <point x="120" y="180"></point>
+        <point x="135" y="240"></point>
+        <point x="105" y="270"></point>
+        <point x="120" y="285"></point>
+        <point x="150" y="270"></point>
+        <point x="180" y="285"></point>
+        <point x="210" y="270"></point>
+        <point x="165" y="240"></point>
+        <point x="180" y="180"></point>
+        <point x="285" y="195"></point>
+        <point x="285" y="165"></point>
+        <point x="180" y="105"></point>
+        <point x="180" y="60"></point>
+        <point x="165" y="15"></point>
+      </polygon>
+    </shape>
+    <shape name="arrow" rotatable="true" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="0"></point>
+        <point x="0" y="150"></point>
+        <point x="105" y="150"></point>
+        <point x="105" y="293"></point>
+        <point x="195" y="293"></point>
+        <point x="195" y="150"></point>
+        <point x="300" y="150"></point>
+      </polygon>
+    </shape>
+    <shape name="box" rotatable="false" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="285"></point>
+        <point x="285" y="225"></point>
+        <point x="285" y="75"></point>
+        <point x="150" y="135"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="135"></point>
+        <point x="15" y="75"></point>
+        <point x="150" y="15"></point>
+        <point x="285" y="75"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="15" y="75"></point>
+        <point x="15" y="225"></point>
+        <point x="150" y="285"></point>
+        <point x="150" y="135"></point>
+      </polygon>
+      <line endX="150" startY="285" marked="false" color="255" endY="135" startX="150"></line>
+      <line endX="15" startY="135" marked="false" color="255" endY="75" startX="150"></line>
+      <line endX="285" startY="135" marked="false" color="255" endY="75" startX="150"></line>
+    </shape>
+    <shape name="bug" rotatable="true" editableColorIndex="0">
+      <circle x="96" y="182" marked="true" color="-1920102913" diameter="108" filled="true"></circle>
+      <circle x="110" y="127" marked="true" color="-1920102913" diameter="80" filled="true"></circle>
+      <circle x="110" y="75" marked="true" color="-1920102913" diameter="80" filled="true"></circle>
+      <line endX="80" startY="100" marked="true" color="-1920102913" endY="30" startX="150"></line>
+      <line endX="220" startY="100" marked="true" color="-1920102913" endY="30" startX="150"></line>
+    </shape>
+    <shape name="butterfly" rotatable="true" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="165"></point>
+        <point x="209" y="199"></point>
+        <point x="225" y="225"></point>
+        <point x="225" y="255"></point>
+        <point x="195" y="270"></point>
+        <point x="165" y="255"></point>
+        <point x="150" y="240"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="165"></point>
+        <point x="89" y="198"></point>
+        <point x="75" y="225"></point>
+        <point x="75" y="255"></point>
+        <point x="105" y="270"></point>
+        <point x="135" y="255"></point>
+        <point x="150" y="240"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="139" y="148"></point>
+        <point x="100" y="105"></point>
+        <point x="55" y="90"></point>
+        <point x="25" y="90"></point>
+        <point x="10" y="105"></point>
+        <point x="10" y="135"></point>
+        <point x="25" y="180"></point>
+        <point x="40" y="195"></point>
+        <point x="85" y="194"></point>
+        <point x="139" y="163"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="162" y="150"></point>
+        <point x="200" y="105"></point>
+        <point x="245" y="90"></point>
+        <point x="275" y="90"></point>
+        <point x="290" y="105"></point>
+        <point x="290" y="135"></point>
+        <point x="275" y="180"></point>
+        <point x="260" y="195"></point>
+        <point x="215" y="195"></point>
+        <point x="162" y="165"></point>
+      </polygon>
+      <polygon color="255" filled="true" marked="false">
+        <point x="150" y="255"></point>
+        <point x="135" y="225"></point>
+        <point x="120" y="150"></point>
+        <point x="135" y="120"></point>
+        <point x="150" y="105"></point>
+        <point x="165" y="120"></point>
+        <point x="180" y="150"></point>
+        <point x="165" y="225"></point>
+      </polygon>
+      <circle x="135" y="90" marked="false" color="255" diameter="30" filled="true"></circle>
+      <line endX="195" startY="105" marked="false" color="255" endY="60" startX="150"></line>
+      <line endX="105" startY="105" marked="false" color="255" endY="60" startX="150"></line>
+    </shape>
+    <shape name="car" rotatable="false" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="300" y="180"></point>
+        <point x="279" y="164"></point>
+        <point x="261" y="144"></point>
+        <point x="240" y="135"></point>
+        <point x="226" y="132"></point>
+        <point x="213" y="106"></point>
+        <point x="203" y="84"></point>
+        <point x="185" y="63"></point>
+        <point x="159" y="50"></point>
+        <point x="135" y="50"></point>
+        <point x="75" y="60"></point>
+        <point x="0" y="150"></point>
+        <point x="0" y="165"></point>
+        <point x="0" y="225"></point>
+        <point x="300" y="225"></point>
+        <point x="300" y="180"></point>
+      </polygon>
+      <circle x="180" y="180" marked="false" color="255" diameter="90" filled="true"></circle>
+      <circle x="30" y="180" marked="false" color="255" diameter="90" filled="true"></circle>
+      <polygon color="255" filled="true" marked="false">
+        <point x="162" y="80"></point>
+        <point x="132" y="78"></point>
+        <point x="134" y="135"></point>
+        <point x="209" y="135"></point>
+        <point x="194" y="105"></point>
+        <point x="189" y="96"></point>
+        <point x="180" y="89"></point>
+      </polygon>
+      <circle x="47" y="195" marked="true" color="-1920102913" diameter="58" filled="true"></circle>
+      <circle x="195" y="195" marked="true" color="-1920102913" diameter="58" filled="true"></circle>
+    </shape>
+    <shape name="circle" rotatable="false" editableColorIndex="0">
+      <circle x="30" y="30" marked="true" color="-1920102913" diameter="240" filled="true"></circle>
+    </shape>
+    <shape name="circle 2" rotatable="false" editableColorIndex="0">
+      <circle x="16" y="16" marked="true" color="-1920102913" diameter="270" filled="true"></circle>
+      <circle x="46" y="46" marked="false" color="255" diameter="210" filled="true"></circle>
+    </shape>
+    <shape name="cow" rotatable="false" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="200" y="193"></point>
+        <point x="197" y="249"></point>
+        <point x="179" y="249"></point>
+        <point x="177" y="196"></point>
+        <point x="166" y="187"></point>
+        <point x="140" y="189"></point>
+        <point x="93" y="191"></point>
+        <point x="78" y="179"></point>
+        <point x="72" y="211"></point>
+        <point x="49" y="209"></point>
+        <point x="48" y="181"></point>
+        <point x="37" y="149"></point>
+        <point x="25" y="120"></point>
+        <point x="25" y="89"></point>
+        <point x="45" y="72"></point>
+        <point x="103" y="84"></point>
+        <point x="179" y="75"></point>
+        <point x="198" y="76"></point>
+        <point x="252" y="64"></point>
+        <point x="272" y="81"></point>
+        <point x="293" y="103"></point>
+        <point x="285" y="121"></point>
+        <point x="255" y="121"></point>
+        <point x="242" y="118"></point>
+        <point x="224" y="167"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="73" y="210"></point>
+        <point x="86" y="251"></point>
+        <point x="62" y="249"></point>
+        <point x="48" y="208"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="25" y="114"></point>
+        <point x="16" y="195"></point>
+        <point x="9" y="204"></point>
+        <point x="23" y="213"></point>
+        <point x="25" y="200"></point>
+        <point x="39" y="123"></point>
+      </polygon>
+    </shape>
+    <shape name="face happy" rotatable="false" editableColorIndex="0">
+      <circle x="8" y="8" marked="true" color="-1920102913" diameter="285" filled="true"></circle>
+      <circle x="60" y="75" marked="false" color="255" diameter="60" filled="true"></circle>
+      <circle x="180" y="75" marked="false" color="255" diameter="60" filled="true"></circle>
+      <polygon color="255" filled="true" marked="false">
+        <point x="150" y="255"></point>
+        <point x="90" y="239"></point>
+        <point x="62" y="213"></point>
+        <point x="47" y="191"></point>
+        <point x="67" y="179"></point>
+        <point x="90" y="203"></point>
+        <point x="109" y="218"></point>
+        <point x="150" y="225"></point>
+        <point x="192" y="218"></point>
+        <point x="210" y="203"></point>
+        <point x="227" y="181"></point>
+        <point x="251" y="194"></point>
+        <point x="236" y="217"></point>
+        <point x="212" y="240"></point>
+      </polygon>
+    </shape>
+    <shape name="face neutral" rotatable="false" editableColorIndex="0">
+      <circle x="8" y="7" marked="true" color="-1920102913" diameter="285" filled="true"></circle>
+      <circle x="60" y="75" marked="false" color="255" diameter="60" filled="true"></circle>
+      <circle x="180" y="75" marked="false" color="255" diameter="60" filled="true"></circle>
+      <rectangle endX="240" startY="195" marked="false" color="255" endY="225" startX="60" filled="true"></rectangle>
+    </shape>
+    <shape name="face sad" rotatable="false" editableColorIndex="0">
+      <circle x="8" y="8" marked="true" color="-1920102913" diameter="285" filled="true"></circle>
+      <circle x="60" y="75" marked="false" color="255" diameter="60" filled="true"></circle>
+      <circle x="180" y="75" marked="false" color="255" diameter="60" filled="true"></circle>
+      <polygon color="255" filled="true" marked="false">
+        <point x="150" y="168"></point>
+        <point x="90" y="184"></point>
+        <point x="62" y="210"></point>
+        <point x="47" y="232"></point>
+        <point x="67" y="244"></point>
+        <point x="90" y="220"></point>
+        <point x="109" y="205"></point>
+        <point x="150" y="198"></point>
+        <point x="192" y="205"></point>
+        <point x="210" y="220"></point>
+        <point x="227" y="242"></point>
+        <point x="251" y="229"></point>
+        <point x="236" y="206"></point>
+        <point x="212" y="183"></point>
+      </polygon>
+    </shape>
+    <shape name="fish" rotatable="false" editableColorIndex="0">
+      <polygon color="-1" filled="true" marked="false">
+        <point x="44" y="131"></point>
+        <point x="21" y="87"></point>
+        <point x="15" y="86"></point>
+        <point x="0" y="120"></point>
+        <point x="15" y="150"></point>
+        <point x="0" y="180"></point>
+        <point x="13" y="214"></point>
+        <point x="20" y="212"></point>
+        <point x="45" y="166"></point>
+      </polygon>
+      <polygon color="-1" filled="true" marked="false">
+        <point x="135" y="195"></point>
+        <point x="119" y="235"></point>
+        <point x="95" y="218"></point>
+        <point x="76" y="210"></point>
+        <point x="46" y="204"></point>
+        <point x="60" y="165"></point>
+      </polygon>
+      <polygon color="-1" filled="true" marked="false">
+        <point x="75" y="45"></point>
+        <point x="83" y="77"></point>
+        <point x="71" y="103"></point>
+        <point x="86" y="114"></point>
+        <point x="166" y="78"></point>
+        <point x="135" y="60"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="30" y="136"></point>
+        <point x="151" y="77"></point>
+        <point x="226" y="81"></point>
+        <point x="280" y="119"></point>
+        <point x="292" y="146"></point>
+        <point x="292" y="160"></point>
+        <point x="287" y="170"></point>
+        <point x="270" y="195"></point>
+        <point x="195" y="210"></point>
+        <point x="151" y="212"></point>
+        <point x="30" y="166"></point>
+      </polygon>
+      <circle x="215" y="106" marked="false" color="255" diameter="30" filled="true"></circle>
+    </shape>
+    <shape name="flag" rotatable="false" editableColorIndex="0">
+      <rectangle endX="75" startY="15" marked="true" color="-1920102913" endY="300" startX="60" filled="true"></rectangle>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="90" y="150"></point>
+        <point x="270" y="90"></point>
+        <point x="90" y="30"></point>
+      </polygon>
+      <line endX="90" startY="135" marked="true" color="-1920102913" endY="135" startX="75"></line>
+      <line endX="90" startY="45" marked="true" color="-1920102913" endY="45" startX="75"></line>
+    </shape>
+    <shape name="flower" rotatable="false" editableColorIndex="0">
+      <polygon color="1504722175" filled="true" marked="false">
+        <point x="135" y="120"></point>
+        <point x="165" y="165"></point>
+        <point x="180" y="210"></point>
+        <point x="180" y="240"></point>
+        <point x="150" y="300"></point>
+        <point x="165" y="300"></point>
+        <point x="195" y="240"></point>
+        <point x="195" y="195"></point>
+        <point x="165" y="135"></point>
+      </polygon>
+      <circle x="85" y="132" marked="true" color="-1920102913" diameter="38" filled="true"></circle>
+      <circle x="130" y="147" marked="true" color="-1920102913" diameter="38" filled="true"></circle>
+      <circle x="192" y="85" marked="true" color="-1920102913" diameter="38" filled="true"></circle>
+      <circle x="85" y="40" marked="true" color="-1920102913" diameter="38" filled="true"></circle>
+      <circle x="177" y="40" marked="true" color="-1920102913" diameter="38" filled="true"></circle>
+      <circle x="177" y="132" marked="true" color="-1920102913" diameter="38" filled="true"></circle>
+      <circle x="70" y="85" marked="true" color="-1920102913" diameter="38" filled="true"></circle>
+      <circle x="130" y="25" marked="true" color="-1920102913" diameter="38" filled="true"></circle>
+      <circle x="96" y="51" marked="true" color="-1920102913" diameter="108" filled="true"></circle>
+      <circle x="113" y="68" marked="false" color="255" diameter="74" filled="true"></circle>
+      <polygon color="1504722175" filled="true" marked="false">
+        <point x="189" y="233"></point>
+        <point x="219" y="188"></point>
+        <point x="249" y="173"></point>
+        <point x="279" y="188"></point>
+        <point x="234" y="218"></point>
+      </polygon>
+      <polygon color="1504722175" filled="true" marked="false">
+        <point x="180" y="255"></point>
+        <point x="150" y="210"></point>
+        <point x="105" y="210"></point>
+        <point x="75" y="240"></point>
+        <point x="135" y="240"></point>
+      </polygon>
+    </shape>
+    <shape name="house" rotatable="false" editableColorIndex="0">
+      <rectangle endX="255" startY="120" marked="true" color="-1920102913" endY="285" startX="45" filled="true"></rectangle>
+      <rectangle endX="180" startY="210" marked="false" color="255" endY="285" startX="120" filled="true"></rectangle>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="15" y="120"></point>
+        <point x="150" y="15"></point>
+        <point x="285" y="120"></point>
+      </polygon>
+      <line endX="270" startY="120" marked="false" color="255" endY="120" startX="30"></line>
+    </shape>
+    <shape name="leaf" rotatable="false" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="210"></point>
+        <point x="135" y="195"></point>
+        <point x="120" y="210"></point>
+        <point x="60" y="210"></point>
+        <point x="30" y="195"></point>
+        <point x="60" y="180"></point>
+        <point x="60" y="165"></point>
+        <point x="15" y="135"></point>
+        <point x="30" y="120"></point>
+        <point x="15" y="105"></point>
+        <point x="40" y="104"></point>
+        <point x="45" y="90"></point>
+        <point x="60" y="90"></point>
+        <point x="90" y="105"></point>
+        <point x="105" y="120"></point>
+        <point x="120" y="120"></point>
+        <point x="105" y="60"></point>
+        <point x="120" y="60"></point>
+        <point x="135" y="30"></point>
+        <point x="150" y="15"></point>
+        <point x="165" y="30"></point>
+        <point x="180" y="60"></point>
+        <point x="195" y="60"></point>
+        <point x="180" y="120"></point>
+        <point x="195" y="120"></point>
+        <point x="210" y="105"></point>
+        <point x="240" y="90"></point>
+        <point x="255" y="90"></point>
+        <point x="263" y="104"></point>
+        <point x="285" y="105"></point>
+        <point x="270" y="120"></point>
+        <point x="285" y="135"></point>
+        <point x="240" y="165"></point>
+        <point x="240" y="180"></point>
+        <point x="270" y="195"></point>
+        <point x="240" y="210"></point>
+        <point x="180" y="210"></point>
+        <point x="165" y="195"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="135" y="195"></point>
+        <point x="135" y="240"></point>
+        <point x="120" y="255"></point>
+        <point x="105" y="255"></point>
+        <point x="105" y="285"></point>
+        <point x="135" y="285"></point>
+        <point x="165" y="240"></point>
+        <point x="165" y="195"></point>
+      </polygon>
+    </shape>
+    <shape name="line" rotatable="true" editableColorIndex="0">
+      <line endX="150" startY="0" marked="true" color="-1920102913" endY="300" startX="150"></line>
+    </shape>
+    <shape name="pentagon" rotatable="false" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="15"></point>
+        <point x="15" y="120"></point>
+        <point x="60" y="285"></point>
+        <point x="240" y="285"></point>
+        <point x="285" y="120"></point>
+      </polygon>
+    </shape>
+    <shape name="person" rotatable="false" editableColorIndex="0">
+      <circle x="110" y="5" marked="true" color="-1920102913" diameter="80" filled="true"></circle>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="105" y="90"></point>
+        <point x="120" y="195"></point>
+        <point x="90" y="285"></point>
+        <point x="105" y="300"></point>
+        <point x="135" y="300"></point>
+        <point x="150" y="225"></point>
+        <point x="165" y="300"></point>
+        <point x="195" y="300"></point>
+        <point x="210" y="285"></point>
+        <point x="180" y="195"></point>
+        <point x="195" y="90"></point>
+      </polygon>
+      <rectangle endX="172" startY="79" marked="true" color="-1920102913" endY="94" startX="127" filled="true"></rectangle>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="195" y="90"></point>
+        <point x="240" y="150"></point>
+        <point x="225" y="180"></point>
+        <point x="165" y="105"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="105" y="90"></point>
+        <point x="60" y="150"></point>
+        <point x="75" y="180"></point>
+        <point x="135" y="105"></point>
+      </polygon>
+    </shape>
+    <shape name="plant" rotatable="false" editableColorIndex="0">
+      <rectangle endX="165" startY="90" marked="true" color="-1920102913" endY="300" startX="135" filled="true"></rectangle>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="135" y="255"></point>
+        <point x="90" y="210"></point>
+        <point x="45" y="195"></point>
+        <point x="75" y="255"></point>
+        <point x="135" y="285"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="165" y="255"></point>
+        <point x="210" y="210"></point>
+        <point x="255" y="195"></point>
+        <point x="225" y="255"></point>
+        <point x="165" y="285"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="135" y="180"></point>
+        <point x="90" y="135"></point>
+        <point x="45" y="120"></point>
+        <point x="75" y="180"></point>
+        <point x="135" y="210"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="165" y="180"></point>
+        <point x="165" y="210"></point>
+        <point x="225" y="180"></point>
+        <point x="255" y="120"></point>
+        <point x="210" y="135"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="135" y="105"></point>
+        <point x="90" y="60"></point>
+        <point x="45" y="45"></point>
+        <point x="75" y="105"></point>
+        <point x="135" y="135"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="165" y="105"></point>
+        <point x="165" y="135"></point>
+        <point x="225" y="105"></point>
+        <point x="255" y="45"></point>
+        <point x="210" y="60"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="135" y="90"></point>
+        <point x="120" y="45"></point>
+        <point x="150" y="15"></point>
+        <point x="180" y="45"></point>
+        <point x="165" y="90"></point>
+      </polygon>
+    </shape>
+    <shape name="square" rotatable="false" editableColorIndex="0">
+      <rectangle endX="270" startY="30" marked="true" color="-1920102913" endY="270" startX="30" filled="true"></rectangle>
+    </shape>
+    <shape name="square 2" rotatable="false" editableColorIndex="0">
+      <rectangle endX="270" startY="30" marked="true" color="-1920102913" endY="270" startX="30" filled="true"></rectangle>
+      <rectangle endX="240" startY="60" marked="false" color="255" endY="240" startX="60" filled="true"></rectangle>
+    </shape>
+    <shape name="star" rotatable="false" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="60" y="270"></point>
+        <point x="150" y="0"></point>
+        <point x="240" y="270"></point>
+        <point x="15" y="105"></point>
+        <point x="285" y="105"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="75" y="120"></point>
+        <point x="105" y="210"></point>
+        <point x="195" y="210"></point>
+        <point x="225" y="120"></point>
+        <point x="150" y="75"></point>
+      </polygon>
+    </shape>
+    <shape name="target" rotatable="false" editableColorIndex="0">
+      <circle x="0" y="0" marked="true" color="-1920102913" diameter="300" filled="true"></circle>
+      <circle x="30" y="30" marked="false" color="255" diameter="240" filled="true"></circle>
+      <circle x="60" y="60" marked="true" color="-1920102913" diameter="180" filled="true"></circle>
+      <circle x="90" y="90" marked="false" color="255" diameter="120" filled="true"></circle>
+      <circle x="120" y="120" marked="true" color="-1920102913" diameter="60" filled="true"></circle>
+    </shape>
+    <shape name="tree" rotatable="false" editableColorIndex="0">
+      <circle x="118" y="3" marked="true" color="-1920102913" diameter="94" filled="true"></circle>
+      <rectangle endX="180" startY="195" marked="false" color="-1653716737" endY="300" startX="120" filled="true"></rectangle>
+      <circle x="65" y="21" marked="true" color="-1920102913" diameter="108" filled="true"></circle>
+      <circle x="116" y="41" marked="true" color="-1920102913" diameter="127" filled="true"></circle>
+      <circle x="45" y="90" marked="true" color="-1920102913" diameter="120" filled="true"></circle>
+      <circle x="104" y="74" marked="true" color="-1920102913" diameter="152" filled="true"></circle>
+    </shape>
+    <shape name="triangle" rotatable="false" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="30"></point>
+        <point x="15" y="255"></point>
+        <point x="285" y="255"></point>
+      </polygon>
+    </shape>
+    <shape name="triangle 2" rotatable="false" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="30"></point>
+        <point x="15" y="255"></point>
+        <point x="285" y="255"></point>
+      </polygon>
+      <polygon color="255" filled="true" marked="false">
+        <point x="151" y="99"></point>
+        <point x="225" y="223"></point>
+        <point x="75" y="224"></point>
+      </polygon>
+    </shape>
+    <shape name="truck" rotatable="false" editableColorIndex="0">
+      <rectangle endX="195" startY="45" marked="true" color="-1920102913" endY="187" startX="4" filled="true"></rectangle>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="296" y="193"></point>
+        <point x="296" y="150"></point>
+        <point x="259" y="134"></point>
+        <point x="244" y="104"></point>
+        <point x="208" y="104"></point>
+        <point x="207" y="194"></point>
+      </polygon>
+      <rectangle endX="195" startY="60" marked="false" color="-1" endY="105" startX="195" filled="true"></rectangle>
+      <polygon color="255" filled="true" marked="false">
+        <point x="238" y="112"></point>
+        <point x="252" y="141"></point>
+        <point x="219" y="141"></point>
+        <point x="218" y="112"></point>
+      </polygon>
+      <circle x="234" y="174" marked="false" color="255" diameter="42" filled="true"></circle>
+      <rectangle endX="214" startY="185" marked="true" color="-1920102913" endY="194" startX="181" filled="true"></rectangle>
+      <circle x="144" y="174" marked="false" color="255" diameter="42" filled="true"></circle>
+      <circle x="24" y="174" marked="false" color="255" diameter="42" filled="true"></circle>
+      <circle x="24" y="174" marked="true" color="-1920102913" diameter="42" filled="false"></circle>
+      <circle x="144" y="174" marked="true" color="-1920102913" diameter="42" filled="false"></circle>
+      <circle x="234" y="174" marked="true" color="-1920102913" diameter="42" filled="false"></circle>
+    </shape>
+    <shape name="turtle" rotatable="true" editableColorIndex="0">
+      <polygon color="1504722175" filled="true" marked="false">
+        <point x="215" y="204"></point>
+        <point x="240" y="233"></point>
+        <point x="246" y="254"></point>
+        <point x="228" y="266"></point>
+        <point x="215" y="252"></point>
+        <point x="193" y="210"></point>
+      </polygon>
+      <polygon color="1504722175" filled="true" marked="false">
+        <point x="195" y="90"></point>
+        <point x="225" y="75"></point>
+        <point x="245" y="75"></point>
+        <point x="260" y="89"></point>
+        <point x="269" y="108"></point>
+        <point x="261" y="124"></point>
+        <point x="240" y="105"></point>
+        <point x="225" y="105"></point>
+        <point x="210" y="105"></point>
+      </polygon>
+      <polygon color="1504722175" filled="true" marked="false">
+        <point x="105" y="90"></point>
+        <point x="75" y="75"></point>
+        <point x="55" y="75"></point>
+        <point x="40" y="89"></point>
+        <point x="31" y="108"></point>
+        <point x="39" y="124"></point>
+        <point x="60" y="105"></point>
+        <point x="75" y="105"></point>
+        <point x="90" y="105"></point>
+      </polygon>
+      <polygon color="1504722175" filled="true" marked="false">
+        <point x="132" y="85"></point>
+        <point x="134" y="64"></point>
+        <point x="107" y="51"></point>
+        <point x="108" y="17"></point>
+        <point x="150" y="2"></point>
+        <point x="192" y="18"></point>
+        <point x="192" y="52"></point>
+        <point x="169" y="65"></point>
+        <point x="172" y="87"></point>
+      </polygon>
+      <polygon color="1504722175" filled="true" marked="false">
+        <point x="85" y="204"></point>
+        <point x="60" y="233"></point>
+        <point x="54" y="254"></point>
+        <point x="72" y="266"></point>
+        <point x="85" y="252"></point>
+        <point x="107" y="210"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="119" y="75"></point>
+        <point x="179" y="75"></point>
+        <point x="209" y="101"></point>
+        <point x="224" y="135"></point>
+        <point x="220" y="225"></point>
+        <point x="175" y="261"></point>
+        <point x="128" y="261"></point>
+        <point x="81" y="224"></point>
+        <point x="74" y="135"></point>
+        <point x="88" y="99"></point>
+      </polygon>
+    </shape>
+    <shape name="wheel" rotatable="false" editableColorIndex="0">
+      <circle x="3" y="3" marked="true" color="-1920102913" diameter="294" filled="true"></circle>
+      <circle x="30" y="30" marked="false" color="255" diameter="240" filled="true"></circle>
+      <line endX="150" startY="285" marked="true" color="-1920102913" endY="15" startX="150"></line>
+      <line endX="285" startY="150" marked="true" color="-1920102913" endY="150" startX="15"></line>
+      <circle x="120" y="120" marked="true" color="-1920102913" diameter="60" filled="true"></circle>
+      <line endX="79" startY="40" marked="true" color="-1920102913" endY="269" startX="216"></line>
+      <line endX="269" startY="84" marked="true" color="-1920102913" endY="221" startX="40"></line>
+      <line endX="269" startY="216" marked="true" color="-1920102913" endY="79" startX="40"></line>
+      <line endX="221" startY="40" marked="true" color="-1920102913" endY="269" startX="84"></line>
+    </shape>
+    <shape name="x" rotatable="false" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="270" y="75"></point>
+        <point x="225" y="30"></point>
+        <point x="30" y="225"></point>
+        <point x="75" y="270"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="30" y="75"></point>
+        <point x="75" y="30"></point>
+        <point x="270" y="225"></point>
+        <point x="225" y="270"></point>
+      </polygon>
+    </shape>
+  </turtleShapes>
+  <linkShapes>
+    <shape name="default" curviness="0.0">
+      <lines>
+        <line x="-0.2" visible="false">
+          <dash value="0.0"></dash>
+          <dash value="1.0"></dash>
+        </line>
+        <line x="0.0" visible="true">
+          <dash value="1.0"></dash>
+          <dash value="0.0"></dash>
+        </line>
+        <line x="0.2" visible="false">
+          <dash value="0.0"></dash>
+          <dash value="1.0"></dash>
+        </line>
+      </lines>
+      <indicator>
+        <shape name="link direction" rotatable="true" editableColorIndex="0">
+          <line endX="90" startY="150" marked="true" color="-1920102913" endY="180" startX="150"></line>
+          <line endX="210" startY="150" marked="true" color="-1920102913" endY="180" startX="150"></line>
+        </shape>
+      </indicator>
+    </shape>
+  </linkShapes>
+  <previewCommands>setup repeat 75 [ go ]</previewCommands>
+</model>
