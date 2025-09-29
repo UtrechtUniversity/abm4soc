@@ -32,7 +32,7 @@ Blue actors are happy only if they have no red neighbors at all.
 "6: full of blues"  
 Blue actors are happy only if they have eight blue neighbors.
 
-"7: egual numbers of reds and blues"  
+"7: equal numbers of reds and blues"  
 Blue actors are happy only if they have as many blue neighbors as they have red neighbors. 
 
 "8: percentages"  
@@ -50,7 +50,7 @@ AND
 ## HOW TO USE IT
 
 ### Installation
-Intall [Netlogo](https://ccl.northwestern.edu/netlogo/) (version 6). Download the .nlogo file from this repository and open it with Netlogo. 
+Install [Netlogo](https://ccl.northwestern.edu/netlogo/) (version 7). Download the .nlogox file from this repository and open it with Netlogo. 
 
 ### Controls
 The _setup_ bottom sets up the agents and the network on the basis of the parameters below. Click it just once at the beginning of the simulation.
